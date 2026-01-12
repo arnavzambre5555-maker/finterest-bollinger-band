@@ -4,37 +4,43 @@
 ---
 
 ## Overview
-Deterministic, walk-forward trading system implementing a Bollinger Bands mean-reversion strategy for NSE equities, enhanced with a machine-learning directional filter.
+Deterministic, walk-forward trading system implementing a Bollinger Bands mean-reversion strategy for NSE equities. Signals are generated at day *t* close and executed at day *t+1* open. No look-ahead bias. Fully reproducible.
 
-Signals are generated on day *t* and executed at the **open of day t+1**.  
-No look-ahead bias. Fully reproducible.
+---
+
+## Problem Statement
+Manual backtesting is slow, error-prone, and non-scalable. Institutional evaluation requires objective metrics such as average returns, win rate, drawdown, and risk-adjusted performance.
 
 ---
 
 ## Strategy Logic
 
 ### Bollinger Bands (Base Strategy)
-- 20-period SMA, ±2 standard deviations  
-- **Buy:** Percent_B < 0.10  
-- **Sell:** Percent_B > 0.90  
+- 20-period SMA  
+- ±2 standard deviations  
+- Buy: Percent_B < 0.10  
+- Sell: Percent_B > 0.90  
 
 ### Machine Learning Filter
-- Predicts **next-day direction (UP / DOWN)**
-- Trained using **walk-forward validation**
-- **Filters** Bollinger signals (does not replace them)
+- Predicts next-day direction (UP / DOWN)  
+- Trained using walk-forward validation  
+- Filters Bollinger signals only (does not replace them)
 
-### Execution & Risk
-- Position size: **95% of capital**
-- Single position, no leverage
-- Execution at **next-day open**
+---
+
+## Execution & Risk
+- Position size: 95% of capital  
+- Single position only  
+- No leverage  
+- Execution at next-day open  
 
 ---
 
 ## Backtesting Methodology
-- Walk-forward evaluation (train ≤t, predict t+1)
-- Signals generated at close of day *t*
-- Trades executed at open of day *t+1*
-- Chronological processing, no future data used
+- Walk-forward evaluation (train ≤ *t*, predict *t+1*)  
+- Signals generated at close of day *t*  
+- Trades executed at open of day *t+1*  
+- Strict chronological processing  
 
 ---
 
@@ -44,90 +50,97 @@ submission/
 │ ├─ bollinger.py
 │ ├─ ml_filter.py
 │ └─ fyers_api.py
-├─ backtest/backtest_engine.py
-├─ docs/STRATEGY_EXPLANATION.md
+├─ backtest/
+│ └─ backtest_engine.py
+├─ docs/
+│ └─ STRATEGY_EXPLANATION.md
 ├─ main.py
 └─ README.md
 
+yaml
+Copy code
+
+---
+
+## Requirements
+- Python 3.7+
+- pandas
+- numpy
+- scikit-learn
+- fyers-apiv3
+
+pip install -r requirements.txt
+
+yaml
+Copy code
 
 ---
 
 ## Usage
 
 ### Primary Mode (FYERS API)
-Create `config.py` (**not committed**):
-```python
+Create `config.py` (not committed):
+
 FYERS_CLIENT_ID = "YOUR_CLIENT_ID"
 FYERS_ACCESS_TOKEN = "YOUR_ACCESS_TOKEN"
-FYERS_MODE = "dry_run"  # or "live"
+FYERS_MODE = "dry_run" # or "live"
 
+makefile
+Copy code
 
 Run:
-
 python main.py --stock SONATSOFTW
 
+yaml
+Copy code
 
-This single command performs:
+---
 
-Historical data fetch via FYERS API
+### Fallback Mode (Reproducibility)
+If FYERS credentials are absent, the system runs on CSV data only.
 
-Walk-forward ML training
+File:
+data/sonata_software.csv
 
-ML-filtered Bollinger signal generation
-
-Chronological backtesting
-
-5-day directional prediction (Jan 1–8)
-
-Programmatic order construction (dry-run or live)
-
-Fallback Mode (Reproducibility Only)
-
-Used only if FYERS credentials are unavailable.
-
-File: data/sonata_software.csv
+makefile
+Copy code
 
 Format:
-
 date,open,high,low,close,volume
 03-11-2025,370.25,374.50,369.05,371.70,266050
 
-Performance Summary
+yaml
+Copy code
 
-Instrument: Sonata Software
-Period: Nov 3 – Dec 31, 2025
+---
 
-Total Return: 6.08%
+## Performance Summary
+**Instrument:** Sonata Software  
+**Period:** Nov 3 – Dec 31, 2025  
 
-Sharpe Ratio: 3.39
+- Total Return: 6.08%  
+- Sharpe Ratio: 3.39  
+- Max Drawdown: 1.33%  
+- Win Rate: 100%  
+- Trades: 2  
 
-Max Drawdown: 1.33%
+---
 
-Win Rate: 100%
+## Competition Compliance
+- Sharpe Ratio > 1.5  
+- Walk-forward backtesting  
+- No look-ahead bias  
+- Deterministic execution  
+- FYERS API integration  
 
-Trades: 2
+---
 
-Competition Compliance
+## Notes
+- No credentials committed  
+- No synthetic data  
+- Historical backtest only  
 
-Sharpe Ratio > 1.5 ✔
+---
 
-Walk-forward backtesting ✔
-
-No look-ahead bias ✔
-
-Deterministic execution ✔
-
-FYERS API integration ✔
-
-Notes
-
-No data or credentials committed
-
-No synthetic price generation
-
-Results are historical backtests only
-
-License
-
-Educational use only.
-Developed for IIT Kharagpur – KSHITIJ 2026 | AQUA Competition
+## License
+Educational use only. Developed for IIT Kharagpur – KSHITIJ 2026 | AQUA Competition.
