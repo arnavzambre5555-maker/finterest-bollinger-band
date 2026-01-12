@@ -52,9 +52,6 @@ submission/
 ├─ main.py
 └─ README.md
 
-yaml
-Copy code
-
 ---
 
 ## Requirements
@@ -65,9 +62,6 @@ Copy code
 - fyers-apiv3
 
 pip install -r requirements.txt
-
-yaml
-Copy code
 
 ---
 
@@ -85,9 +79,6 @@ Copy code
 
 Run:
 python main.py --stock SONATSOFTW
-
-yaml
-Copy code
 
 ---
 
