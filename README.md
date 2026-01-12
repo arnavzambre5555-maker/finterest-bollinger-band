@@ -8,11 +8,6 @@ Deterministic, walk-forward trading system implementing a Bollinger Bands mean-r
 
 ---
 
-## Problem Statement
-Manual backtesting is slow, error-prone, and non-scalable. Institutional evaluation requires objective metrics such as average returns, win rate, drawdown, and risk-adjusted performance.
-
----
-
 ## Strategy Logic
 
 ### Bollinger Bands (Base Strategy)
@@ -90,24 +85,6 @@ Copy code
 
 Run:
 python main.py --stock SONATSOFTW
-
-yaml
-Copy code
-
----
-
-### Fallback Mode (Reproducibility)
-If FYERS credentials are absent, the system runs on CSV data only.
-
-File:
-data/sonata_software.csv
-
-makefile
-Copy code
-
-Format:
-date,open,high,low,close,volume
-03-11-2025,370.25,374.50,369.05,371.70,266050
 
 yaml
 Copy code
