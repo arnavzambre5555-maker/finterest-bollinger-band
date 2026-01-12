@@ -1,120 +1,133 @@
-# Bollinger Bands Trading Strategy
+# Bollinger Bands Trading Strategy  
+**IIT Kharagpur – KSHITIJ 2026 | AQUA Competition**
 
-IIT Kharagpur KSHITIJ 2026 - AQUA Competition
+---
 
 ## Overview
+Deterministic, walk-forward trading system implementing a Bollinger Bands mean-reversion strategy for NSE equities, enhanced with a machine-learning directional filter.
 
-Deterministic, walk-forward backtesting implementation of a Bollinger Bands mean-reversion strategy for NSE equities.
+Signals are generated on day *t* and executed at the **open of day t+1**.  
+No look-ahead bias. Fully reproducible.
 
-The system generates signals on day t and executes trades at the open of day t+1. No look-ahead bias, no randomness, fully reproducible.
+---
 
 ## Strategy Logic
 
-- Indicator: Bollinger Bands (20-period SMA, 2 standard deviations)
-- Entry: Buy when Percent_B < 0.1 (oversold)
-- Exit: Sell when Percent_B > 0.9 (overbought)
-- Position Sizing: 95% of available capital
-- Execution: Next trading day open
-- Risk Management: Single position, no leverage
+### Bollinger Bands (Base Strategy)
+- 20-period SMA, ±2 standard deviations  
+- **Buy:** Percent_B < 0.10  
+- **Sell:** Percent_B > 0.90  
+
+### Machine Learning Filter
+- Predicts **next-day direction (UP / DOWN)**
+- Trained using **walk-forward validation**
+- **Filters** Bollinger signals (does not replace them)
+
+### Execution & Risk
+- Position size: **95% of capital**
+- Single position, no leverage
+- Execution at **next-day open**
+
+---
 
 ## Backtesting Methodology
+- Walk-forward evaluation (train ≤t, predict t+1)
+- Signals generated at close of day *t*
+- Trades executed at open of day *t+1*
+- Chronological processing, no future data used
 
-### Walk-Forward Evaluation
-
-1. Indicators calculated using only historical data up to day t
-2. Signals generated at end of day t (market close)
-3. Trades executed at open of day t+1
-4. Portfolio value tracked daily at market close
-
-### No Look-Ahead Bias
-
-- Uses data available only at signal generation time
-- Execution price is next day open (realistic)
-- No future information used in decision making
-- Chronological processing order maintained
+---
 
 ## Project Structure
+submission/
+├─ strategy/
+│ ├─ bollinger.py
+│ ├─ ml_filter.py
+│ └─ fyers_api.py
+├─ backtest/backtest_engine.py
+├─ docs/STRATEGY_EXPLANATION.md
+├─ main.py
+└─ README.md
 
-    submission/
-    - strategy/bollinger.py
-    - backtest/backtest_engine.py
-    - docs/STRATEGY_EXPLANATION.md
-    - main.py
-    - README.md
-    - .gitignore
 
-## Requirements
-
-    pip install pandas numpy
-
-Python 3.7 or higher required.
+---
 
 ## Usage
 
-Place your OHLCV data file in data/sonata_software.csv with format:
+### Primary Mode (FYERS API)
+Create `config.py` (**not committed**):
+```python
+FYERS_CLIENT_ID = "YOUR_CLIENT_ID"
+FYERS_ACCESS_TOKEN = "YOUR_ACCESS_TOKEN"
+FYERS_MODE = "dry_run"  # or "live"
 
-    date,open,high,low,close,volume
-    03-11-2025,370.25,374.50,369.05,371.70,266050
 
-Date format: DD-MM-YYYY
+Run:
 
-Then run:
+python main.py --stock SONATSOFTW
 
-    python main.py
 
-## Performance Summary
+This single command performs:
 
-Period: November 3 - December 31, 2025
-Stock: Sonata Software (SONATSOFTW.NS)
+Historical data fetch via FYERS API
+
+Walk-forward ML training
+
+ML-filtered Bollinger signal generation
+
+Chronological backtesting
+
+5-day directional prediction (Jan 1–8)
+
+Programmatic order construction (dry-run or live)
+
+Fallback Mode (Reproducibility Only)
+
+Used only if FYERS credentials are unavailable.
+
+File: data/sonata_software.csv
+
+Format:
+
+date,open,high,low,close,volume
+03-11-2025,370.25,374.50,369.05,371.70,266050
+
+Performance Summary
+
+Instrument: Sonata Software
+Period: Nov 3 – Dec 31, 2025
 
 Total Return: 6.08%
+
 Sharpe Ratio: 3.39
+
 Max Drawdown: 1.33%
+
 Win Rate: 100%
-Total Trades: 2
 
-Competition Compliance:
-- Sharpe Ratio > 1.5 PASS
-- Positive returns PASS
-- Walk-forward backtest implemented
-- No look-ahead bias
-- Deterministic execution
+Trades: 2
 
-## Strategy Rationale
+Competition Compliance
 
-Bollinger Bands capture mean reversion by defining statistical boundaries around price using 2 standard deviations. During Nov-Dec 2025, Sonata Software exhibited range-bound behavior between Rs 340-400 with clear mean-reverting price action.
+Sharpe Ratio > 1.5 ✔
 
-## Code Quality
+Walk-forward backtesting ✔
 
-- Modular: Strategy logic separated from execution
-- Documented: Comprehensive docstrings
-- Tested: No data leakage
-- Clean: PEP 8 compliant
-- Reproducible: Deterministic
+No look-ahead bias ✔
 
-## Limitations
+Deterministic execution ✔
 
-- Strategy tested on limited period (2 months)
-- Performance specific to range-bound markets
-- No transaction costs included
-- Single-asset strategy
-- Mean reversion assumption may fail in trending markets
+FYERS API integration ✔
 
-## Notes
+Notes
 
-- No CSV, JSON, or data files committed to repository
-- No API keys, tokens, or credentials included
-- Strategy is fully deterministic and reproducible
-- All generated output files are in .gitignore
+No data or credentials committed
 
-Results shown are historical backtest results and not indicative of future performance.
+No synthetic price generation
 
-## License
+Results are historical backtests only
 
-Educational use only. Developed for IIT Kharagpur KSHITIJ 2026 AQUA Competition.
+License
 
-## Author
-
-Submitted for IIT Kharagpur KSHITIJ 2026 - AQUA Competition
-Knowledge Partner: FYERS
-Powered By: Finance & Economics Club, IIT Kharagpur
+Educational use only.
+Developed for IIT Kharagpur – KSHITIJ 2026 | AQUA Competition
