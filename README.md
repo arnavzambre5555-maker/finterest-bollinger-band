@@ -51,16 +51,45 @@ Python 3.7 or higher required.
 
 ## Usage
 
-Place your OHLCV data file in data/sonata_software.csv with format:
+1. Configure FYERS credentials (API-based execution):
+   - Create `config.py` (not committed to GitHub)
+   - Provide:
+     - FYERS_CLIENT_ID
+     - FYERS_ACCESS_TOKEN
+     - FYERS_MODE = "dry_run" or "live"
 
-    date,open,high,low,close,volume
-    03-11-2025,370.25,374.50,369.05,371.70,266050
+2. Run the complete pipeline:
+   
+   python main.py --stock SONATSOFTW
+
+This single command performs:
+- Historical data fetch via FYERS API
+- Walk-forward ML training
+- Signal generation (ML-filtered Bollinger Bands)
+- Backtesting (chronological, no look-ahead)
+- Prediction of next 5 trading days (Jan 1–8)
+- Programmatic order construction via FYERS API (dry-run or live)
+
+### Fallback Mode (Reproducibility Only)
+
+If FYERS credentials are not provided, the system automatically falls back to
+CSV-based historical data for reproducibility and evaluation.
+
+CSV location:
+data/sonata_software.csv
+
+Required format:
+date,open,high,low,close,volume
+03-11-2025,370.25,374.50,369.05,371.70,266050
 
 Date format: DD-MM-YYYY
 
-Then run:
+Run:
+python main.py --stock SONATSOFTW
 
-    python main.py
+This fallback is provided **only** to allow reviewers to reproduce results
+without API access. The primary and intended mode is FYERS API execution.
+
 
 ## Performance Summary
 
