@@ -35,10 +35,15 @@ def main():
     # Step 3: Train ML model
     print("\n[3/6] Training ML model...")
     ml_model = MLTradingModel()
-    ml_model.train(train_df)
-    ml_model.save_model('trained_model.pkl')
-    print("Model trained and saved as 'trained_model.pkl'")
-    print(f"Training frozen on: {train_end}")
+    
+    try:
+        ml_model.train(train_df)
+        ml_model.save_model('trained_model.pkl')
+        print("✓ Model trained and saved as 'trained_model.pkl'")
+        print(f"✓ Training frozen on: {train_end}")
+    except Exception as e:
+        print(f"ERROR: Failed to train model - {str(e)}")
+        return
     
     # Step 4: Backtest on training period
     print("\n[4/6] Running backtest on training period...")
@@ -57,11 +62,16 @@ def main():
     # Save backtest results
     with open('results_summary.json', 'w') as f:
         json.dump(metrics, f, indent=4)
-    print("\nBacktest results saved to 'results_summary.json'")
+    print("\n✓ Backtest results saved to 'results_summary.json'")
     
     # Save trades log
-    trades_df.to_csv('trades_log.csv', index=False)
-    print("Trades log saved to 'trades_log.csv'")
+    if len(trades_df) > 0:
+        trades_df.to_csv('trades_log.csv', index=False)
+        print("✓ Trades log saved to 'trades_log.csv'")
+    else:
+        # Create empty trades log
+        pd.DataFrame(columns=['Date', 'Action', 'Price', 'Shares', 'Capital']).to_csv('trades_log.csv', index=False)
+        print("✓ Empty trades log saved to 'trades_log.csv'")
     
     # Step 5: Generate forward predictions (MANDATORY)
     print("\n[5/6] Generating forward predictions for Jan 1-8, 2026...")
@@ -69,14 +79,15 @@ def main():
     
     if predict_df is None or len(predict_df) == 0:
         print("WARNING: No data available for prediction period")
-        print("Creating dummy predictions file...")
+        print("Creating predictions file with note...")
         
-        # Create dummy predictions
+        # Create predictions file with note
         forward_predictions = {
+            "symbol": symbol,
             "prediction_period": f"{predict_start} to {predict_end}",
             "model_frozen_on": train_end,
             "predictions": [],
-            "note": "No market data available for this period"
+            "note": "Market data not yet available for this future period. Model is frozen and ready for forward testing."
         }
     else:
         print(f"Loaded {len(predict_df)} records for prediction")
@@ -84,29 +95,43 @@ def main():
         # Calculate features for prediction
         predict_df = calculate_bollinger_bands(predict_df, window=20, num_std=2)
         
-        # Generate predictions
-        predictions = ml_model.predict_proba(predict_df)
-        
-        # Prepare forward predictions output
-        forward_predictions = {
-            "prediction_period": f"{predict_start} to {predict_end}",
-            "model_frozen_on": train_end,
-            "predictions": []
-        }
-        
-        for date, row in predictions.iterrows():
-            forward_predictions["predictions"].append({
-                "date": str(date.date()) if hasattr(date, 'date') else str(date),
-                "probability_up": round(float(row['prob_up']), 4),
-                "probability_down": round(float(row['prob_down']), 4),
-                "predicted_direction": row['predicted_direction']
-            })
+        # Generate predictions using frozen model
+        try:
+            predictions = ml_model.predict_proba(predict_df)
+            
+            # Prepare forward predictions output
+            forward_predictions = {
+                "symbol": symbol,
+                "prediction_period": f"{predict_start} to {predict_end}",
+                "model_frozen_on": train_end,
+                "predictions": []
+            }
+            
+            for date, row in predictions.iterrows():
+                forward_predictions["predictions"].append({
+                    "date": str(date.date()) if hasattr(date, 'date') else str(date),
+                    "probability_up": round(float(row['prob_up']), 4),
+                    "probability_down": round(float(row['prob_down']), 4),
+                    "predicted_direction": row['predicted_direction']
+                })
+            
+            print(f"✓ Generated {len(predictions)} forward predictions")
+            
+        except Exception as e:
+            print(f"WARNING: Failed to generate predictions - {str(e)}")
+            forward_predictions = {
+                "symbol": symbol,
+                "prediction_period": f"{predict_start} to {predict_end}",
+                "model_frozen_on": train_end,
+                "predictions": [],
+                "error": str(e)
+            }
     
     # Save forward predictions (MANDATORY OUTPUT)
     with open('predictions_jan_2026.json', 'w') as f:
         json.dump(forward_predictions, f, indent=4)
     
-    print("Forward predictions saved to 'predictions_jan_2026.json'")
+    print("✓ Forward predictions saved to 'predictions_jan_2026.json'")
     
     # Step 6: Compliance check
     print("\n[6/6] Compliance check...")
@@ -122,13 +147,21 @@ def main():
     for file in required_files:
         exists = os.path.exists(file)
         status = "✓" if exists else "✗"
-        print(f"{status} {file}")
+        print(f"  {status} {file}")
         if not exists:
             all_present = False
     
     print("\n" + "=" * 60)
     if all_present:
         print("SUCCESS: All compliance outputs generated")
+        print("=" * 60)
+        print("\nSUMMARY:")
+        print(f"  • Model trained on: {train_start} to {train_end}")
+        print(f"  • Model frozen on: {train_end}")
+        print(f"  • Backtest trades: {metrics.get('Number of Trades', 0)}")
+        print(f"  • Total return: {metrics.get('Total Return (%)', 0)}%")
+        print(f"  • Sharpe ratio: {metrics.get('Sharpe Ratio', 0)}")
+        print(f"  • Forward predictions: {len(forward_predictions.get('predictions', []))}")
     else:
         print("WARNING: Some required files missing")
     print("=" * 60)
