@@ -1,8 +1,16 @@
-# Data files
-*.csv
-*.json
-*.txt
-data/
+# Keep predictions in repo for submission
+# predictions_jan_2026.csv
+
+# Optional outputs (can ignore)
+ml_enhanced_trades.csv
+ml_backtest_metrics.json
+
+# Sensitive files
+fyers_access_token.txt
+*.log
+
+# Model artifacts
+ml_model.pkl
 
 # Python
 __pycache__/
@@ -10,22 +18,18 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Credentials
-*token*
-*secret*
-*key*
-
-# Results
-backtest_results/
-logs/
