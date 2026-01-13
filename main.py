@@ -14,8 +14,6 @@ def main():
     symbol = "NSE:SBIN-EQ"
     train_start = "2025-11-01"
     train_end = "2025-12-31"
-    predict_start = "2026-01-01"
-    predict_end = "2026-01-08"
     
     # Step 1: Load training data
     print(f"\n[1/6] Loading training data from {train_start} to {train_end}...")
@@ -73,59 +71,49 @@ def main():
         pd.DataFrame(columns=['Date', 'Action', 'Price', 'Shares', 'Capital']).to_csv('trades_log.csv', index=False)
         print("✓ Empty trades log saved to 'trades_log.csv'")
     
-    # Step 5: Generate forward predictions (MANDATORY)
-    print("\n[5/6] Generating forward predictions for Jan 1-8, 2026...")
-    predict_df = get_fyers_data(symbol, predict_start, predict_end)
+    # Step 5: Generate forward predictions (MANDATORY - NO FUTURE DATA)
+    print("\n[5/6] Generating 5-day forward prediction (Jan 1-8, 2026)...")
+    print("Using frozen model state from Dec 31, 2025...")
     
-    if predict_df is None or len(predict_df) == 0:
-        print("WARNING: No data available for prediction period")
-        print("Creating predictions file with note...")
+    try:
+        # Use last available state from Dec 31, 2025 (NO FUTURE DATA)
+        last_state = train_df.iloc[-1:]
         
-        # Create predictions file with note
+        # Generate prediction using frozen model
+        predictions = ml_model.predict_proba(last_state)
+        
+        if len(predictions) == 0:
+            raise ValueError("Failed to generate prediction from last state")
+        
+        # Extract single prediction
+        pred_row = predictions.iloc[0]
+        
+        # Create forward prediction (5-day forecast)
         forward_predictions = {
             "symbol": symbol,
-            "prediction_period": f"{predict_start} to {predict_end}",
+            "prediction_period": "2026-01-01 to 2026-01-08",
             "model_frozen_on": train_end,
-            "predictions": [],
-            "note": "Market data not yet available for this future period. Model is frozen and ready for forward testing."
+            "forecast_horizon": "5 trading days",
+            "last_training_date": str(train_df.index[-1].date()) if hasattr(train_df.index[-1], 'date') else str(train_df.index[-1]),
+            "probability_up": round(float(pred_row['prob_up']), 4),
+            "probability_down": round(float(pred_row['prob_down']), 4),
+            "predicted_direction": pred_row['predicted_direction'],
+            "note": "Prediction generated from frozen model state as of Dec 31, 2025. No future data used."
         }
-    else:
-        print(f"Loaded {len(predict_df)} records for prediction")
         
-        # Calculate features for prediction
-        predict_df = calculate_bollinger_bands(predict_df, window=20, num_std=2)
+        print(f"✓ Forward prediction generated")
+        print(f"  Probability UP: {forward_predictions['probability_up']}")
+        print(f"  Probability DOWN: {forward_predictions['probability_down']}")
+        print(f"  Direction: {forward_predictions['predicted_direction']}")
         
-        # Generate predictions using frozen model
-        try:
-            predictions = ml_model.predict_proba(predict_df)
-            
-            # Prepare forward predictions output
-            forward_predictions = {
-                "symbol": symbol,
-                "prediction_period": f"{predict_start} to {predict_end}",
-                "model_frozen_on": train_end,
-                "predictions": []
-            }
-            
-            for date, row in predictions.iterrows():
-                forward_predictions["predictions"].append({
-                    "date": str(date.date()) if hasattr(date, 'date') else str(date),
-                    "probability_up": round(float(row['prob_up']), 4),
-                    "probability_down": round(float(row['prob_down']), 4),
-                    "predicted_direction": row['predicted_direction']
-                })
-            
-            print(f"✓ Generated {len(predictions)} forward predictions")
-            
-        except Exception as e:
-            print(f"WARNING: Failed to generate predictions - {str(e)}")
-            forward_predictions = {
-                "symbol": symbol,
-                "prediction_period": f"{predict_start} to {predict_end}",
-                "model_frozen_on": train_end,
-                "predictions": [],
-                "error": str(e)
-            }
+    except Exception as e:
+        print(f"ERROR: Failed to generate forward prediction - {str(e)}")
+        forward_predictions = {
+            "symbol": symbol,
+            "prediction_period": "2026-01-01 to 2026-01-08",
+            "model_frozen_on": train_end,
+            "error": str(e)
+        }
     
     # Save forward predictions (MANDATORY OUTPUT)
     with open('predictions_jan_2026.json', 'w') as f:
@@ -161,7 +149,8 @@ def main():
         print(f"  • Backtest trades: {metrics.get('Number of Trades', 0)}")
         print(f"  • Total return: {metrics.get('Total Return (%)', 0)}%")
         print(f"  • Sharpe ratio: {metrics.get('Sharpe Ratio', 0)}")
-        print(f"  • Forward predictions: {len(forward_predictions.get('predictions', []))}")
+        print(f"  • Forward forecast: {forward_predictions.get('predicted_direction', 'N/A')}")
+        print(f"  • NO FUTURE DATA USED IN PREDICTION")
     else:
         print("WARNING: Some required files missing")
     print("=" * 60)
