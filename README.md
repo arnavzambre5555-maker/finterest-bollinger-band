@@ -1,202 +1,154 @@
-ML-Driven Trading System Using Bollinger-Based Features
-
-KSHITIJ 2026 – FinStreet / AQUA Competition Submission
-
-1. Objective
-
-This repository implements a fully automated, machine-learning–driven trading system in strict accordance with the KSHITIJ 2026 FinStreet problem statement.
-
-The system is designed to:
-
-Learn from historical price data
-
-Predict 5-day forward price direction
-
-Convert predictions into systematic trading signals
-
-Backtest the strategy chronologically
-
-Produce a true forward prediction without future data leakage
-
-No manual intervention is used at any stage.
-
-2. End-to-End Pipeline
-
-The implemented pipeline follows the mandated structure:
-
-FYERS Market Data → Feature Engineering → ML Model → Signal Generation → Backtest → Forward Prediction
-
-Each stage is deterministic, reproducible, and auditable.
-
-3. Data Source and Constraints
-
-Market Data Source: FYERS Official Market Data API
-
-Instrument: Single NSE-listed equity (as per competition stock list)
-
-Frequency: Daily OHLCV
-
-Training Window:
-
-1 November 2025 – 31 December 2025
-
-External / alternative datasets: Not used
-
-All data is fetched programmatically using the FYERS API.
-No CSV imports or offline datasets are used.
-
-4. Feature Engineering
-
-Technical indicators are used only as model features, not as trading rules.
-
-Computed features:
-
-20-day Simple Moving Average (SMA)
-
-Rolling Standard Deviation (STD)
-
-Bollinger Band Upper and Lower
-
-Percent_B
-
-Bandwidth
-
-No indicator thresholds are used for direct BUY or SELL decisions.
-
-5. Machine Learning Model
-
-Model Type: Supervised binary classification
-
-Algorithm: Random Forest Classifier
-
-Input Features:
-
-Percent_B
-
-Bandwidth
-
-SMA
-
-STD
-
-Target Definition
-
-The model predicts whether price will move up or down over the next 5 trading days.
-
-Target = 1  if  Close[t+5] > Close[t]
-Target = 0  otherwise
-
-
-This explicitly satisfies the requirement to predict the next 5 trading days.
-
-Training Protocol
-
-Model trained only on data from Nov–Dec 2025
-
-Model state is frozen on 31 Dec 2025
-
-Trained model is persisted as trained_model.pkl
-
-6. Trading Signal Generation
-
-Trading signals are generated exclusively from ML probabilities:
-
-BUY: Probability(Up) > 0.55
-
-SELL: Probability(Up) < 0.45
-
-HOLD: Otherwise
-
-There are no rule-based Bollinger thresholds in the decision logic.
-
-7. Backtesting Methodology
-
-Chronological backtest on the training window
-
-No look-ahead bias
-
-No data leakage
-
-Capital, position sizing, and P&L tracked systematically
-
-Performance metrics computed:
-
-Total Return
-
-Sharpe Ratio
-
-Maximum Drawdown
-
-Win Rate
-
-Trade Log
-
-Outputs:
-
-results_summary.json
-
-trades_log.csv
-
-8. Forward Prediction (Mandatory Requirement)
-
-A true forward prediction is generated as follows:
-
-Model is frozen on 31 December 2025
-
-No January 2026 market data is accessed
-
-The last available state (Dec 31) is used to forecast the next 5 trading days
-
-Output is saved to:
-
-predictions_jan_2026.json
-
-
-This file contains:
-
-Probability of upward movement
-
-Probability of downward movement
-
-Predicted direction
-
-Explicit confirmation that no future data was used
-
-9. Automation and Reproducibility
-
-Single execution entry point: main.py
-
-Fully automated pipeline
-
-No notebooks required
-
-No manual steps
-
-Running main.py generates all mandatory outputs in one execution.
-
-10. Repository Structure
+# Bollinger Bands Trading Strategy with Machine Learning
+
+## IIT Kharagpur KSHITIJ 2026 - AQUA Competition Submission
+
+### Overview
+ML-enhanced mean reversion strategy combining Bollinger Bands with Logistic Regression for improved signal quality.
+
+### Strategy Components
+
+#### 1. Machine Learning Model
+- **Algorithm**: Logistic Regression (scikit-learn)
+- **Target**: Next-day price direction (up/down)
+- **Features**:
+  - Percent_B (position within Bollinger Bands)
+  - Bollinger Bandwidth (volatility measure)
+  - Distance from SMA (trend deviation)
+  - 1-day return (momentum)
+- **Training**: Walk-forward validation with fresh model instances (no look-ahead bias)
+- **Output**: Probability of upward price movement
+
+#### 2. Signal Generation Rules
+- **BUY**: Bollinger oversold (Percent_B < 0.1) AND ML probability > 0.55
+- **SELL**: Bollinger overbought (Percent_B > 0.9) OR ML probability < 0.45
+
+#### 3. FYERS API Integration
+- Historical data fetching via FYERS API
+- Market order execution (CNC product type)
+- Authentication flow implemented
+- Symbol: NSE:SONATSOFTW-EQ
+
+### Critical Implementation Details
+
+#### Walk-Forward Methodology
+- Each prediction uses ONLY data available up to that point
+- Fresh `MLModel()` instance created for each prediction step
+- No scaler state contamination between iterations
+- Prevents data leakage from future information
+
+#### Prediction Output
+- Directional signals (UP/DOWN) with confidence scores
+- NO fabricated price paths or returns
+- Predictions based on learned patterns from historical features
+- Output format: `date, predicted_direction, confidence`
+
+#### Execution Logic
+- Signals generated at day T execute at day T+1 open price
+- Next-day open execution (realistic with market orders)
+- 95% of capital allocated per trade
+- Single position limit (no pyramiding)
+
+### Project Structure
+```
 .
-├── main.py
-├── ml_model.py
-├── strategy.py
-├── fyers_data.py
-├── trained_model.pkl
-├── predictions_jan_2026.json
-├── results_summary.json
-├── trades_log.csv
+├── ml/
+│   ├── features.py          # Feature engineering
+│   ├── model.py             # ML model wrapper
+│   ├── train.py             # Training pipeline
+│   └── predict.py           # Prediction generator
+├── fyers/
+│   ├── auth.py              # FYERS authentication
+│   ├── data.py              # Historical data fetch
+│   └── orders.py            # Order execution
+├── data/
+│   └── sonata_software.csv  # Historical OHLCV data
+├── run_pipeline.py          # Main execution script
+├── predictions_jan_2026.csv # Competition predictions
 └── README.md
+```
 
-11. Evaluation Notes
+### Installation
+```bash
+pip install pandas numpy scikit-learn fyers-apiv3 joblib
+```
 
-This is not a rule-based Bollinger Bands strategy
+### Usage
 
-Bollinger indicators are used strictly as features
+#### Run Complete Pipeline
+```bash
+python run_pipeline.py
+```
 
-Machine learning is the sole decision engine
+This executes:
+1. ML model training on historical data
+2. Walk-forward backtest with ML-enhanced signals
+3. Jan 1-8, 2026 predictions generation
+4. Results saved to CSV/JSON
 
-Forward prediction is genuinely out-of-sample
+#### FYERS API Setup
+```bash
+export FYERS_CLIENT_ID='your_client_id'
+export FYERS_SECRET_KEY='your_secret_key'
+export FYERS_REDIRECT_URI='https://www.google.com'
+```
 
-12. Disclaimer
+#### Generate Authentication URL
+```python
+from fyers.auth import FyersAuth
+auth = FyersAuth()
+print(auth.generate_auth_url())
+```
 
-This project is developed solely for academic and competition purposes under the KSHITIJ 2026 FinStreet challenge.
-It does not constitute investment advice or a live trading recommendation.
+### Competition Compliance
+
+#### Required Deliverables
+- ✅ Machine Learning model (Logistic Regression)
+- ✅ FYERS API integration (auth, data, orders)
+- ✅ Walk-forward backtest (no look-ahead bias)
+- ✅ Jan 1-8, 2026 predictions (`predictions_jan_2026.csv`)
+- ✅ Clean, modular code structure
+- ✅ Documentation
+
+#### Performance Metrics
+- **Model**: Logistic Regression with 4 technical features
+- **Backtest Period**: Nov 1 - Dec 31, 2025
+- **Position Sizing**: 95% of capital
+- **Execution**: Next-day open price
+- **Risk Management**: Single position limit, mean reversion based
+
+### Output Files
+- `ml_model.pkl` - Trained ML model
+- `ml_enhanced_trades.csv` - Trade log with ML probabilities
+- `predictions_jan_2026.csv` - Next 5 days predictions
+- `ml_backtest_metrics.json` - Performance summary
+
+### Predictions Format
+```csv
+date,predicted_direction,confidence
+2026-01-01,UP,0.5823
+2026-01-02,DOWN,0.4651
+2026-01-03,UP,0.6102
+...
+```
+
+### Key Assumptions
+- Market: NSE India
+- Timeframe: Daily bars
+- Execution: Next-day open (T+1 execution)
+- No transaction costs in backtest
+- FYERS API for live execution
+
+### Competition Requirements Met
+1. **ML Integration**: Logistic Regression enhances Bollinger signals
+2. **FYERS API**: Complete implementation for data + orders
+3. **Predictions**: 5-day directional forecast for Jan 2026
+4. **Walk-Forward**: Fresh model instances, no future data leakage
+5. **Code Quality**: Modular, documented, production-ready
+
+### Security Notice
+- Never commit FYERS credentials to repository
+- Use environment variables for API keys
+- `.gitignore` excludes sensitive files
+
+### License
+MIT License - IIT Kharagpur KSHITIJ 2026 Competition Submission
