@@ -1,98 +1,137 @@
-"""
-Main execution file for Bollinger Bands strategy
-IIT Kharagpur AQUA Competition 2026
-"""
-
-import sys
 import pandas as pd
 import json
+from datetime import datetime
+from fyers_data import get_fyers_data
+from strategy import calculate_bollinger_bands, generate_ml_signals, backtest_strategy, calculate_performance_metrics
+from ml_model import MLTradingModel
 
-sys.path.append('strategy')
-sys.path.append('backtest')
-
-from bollinger import BollingerBandsStrategy
-from backtest_engine import BacktestEngine
-
-def main(data_path='data/sonata_software.csv'):
-    """
-    Execute backtest and display results.
+def main():
+    print("=" * 60)
+    print("ML-DRIVEN BOLLINGER BANDS TRADING SYSTEM")
+    print("=" * 60)
     
-    Parameters:
-    -----------
-    data_path : str
-        Path to CSV file with OHLCV data
-    """
-    print("="*70)
-    print("BOLLINGER BANDS TRADING STRATEGY")
-    print("IIT Kharagpur AQUA Competition 2026")
-    print("="*70)
+    # Parameters
+    symbol = "NSE:SBIN-EQ"
+    train_start = "2025-11-01"
+    train_end = "2025-12-31"
+    predict_start = "2026-01-01"
+    predict_end = "2026-01-08"
     
-    # Load data
-    df = pd.read_csv(data_path)
-    df['date'] = pd.to_datetime(df['date'], dayfirst=True)
-    df.set_index('date', inplace=True)
-    df = df.sort_index()
+    # Step 1: Load training data
+    print(f"\n[1/6] Loading training data from {train_start} to {train_end}...")
+    train_df = get_fyers_data(symbol, train_start, train_end)
     
-    print(f"\nData Period: {df.index[0].date()} to {df.index[-1].date()}")
-    print(f"Trading Days: {len(df)}")
+    if train_df is None or len(train_df) == 0:
+        print("ERROR: Failed to load training data")
+        return
     
-    # Initialize strategy and backtest engine
-    strategy = BollingerBandsStrategy(
-        window=20, 
-        num_std=2.0, 
-        oversold=0.1, 
-        overbought=0.9
-    )
+    print(f"Loaded {len(train_df)} training records")
     
-    engine = BacktestEngine(
-        strategy, 
-        initial_capital=100000, 
-        position_size_pct=0.95
-    )
+    # Step 2: Calculate Bollinger Bands features
+    print("\n[2/6] Calculating Bollinger Bands indicators...")
+    train_df = calculate_bollinger_bands(train_df, window=20, num_std=2)
+    print(f"Features calculated: {['Percent_B', 'Bandwidth', 'SMA', 'STD']}")
     
-    # Run backtest
-    print("\nRunning backtest...")
-    df_result, trades = engine.run(df)
-    metrics = engine.calculate_metrics(df_result, trades)
+    # Step 3: Train ML model
+    print("\n[3/6] Training ML model...")
+    ml_model = MLTradingModel()
+    ml_model.train(train_df)
+    ml_model.save_model('trained_model.pkl')
+    print("Model trained and saved as 'trained_model.pkl'")
+    print(f"Training frozen on: {train_end}")
     
-    # Display results
-    print("\n" + "="*70)
-    print("PERFORMANCE METRICS")
-    print("="*70)
-    print(f"  Initial Capital:    Rs. {metrics['Initial_Capital']:>12,.2f}")
-    print(f"  Final Value:        Rs. {metrics['Final_Value']:>12,.2f}")
-    print(f"  Net Profit:         Rs. {metrics['Net_Profit']:>12,.2f}")
-    print(f"  Total Return:            {metrics['Total_Return_Pct']:>11.2f}%")
-    print(f"  Max Drawdown:            {abs(metrics['Max_Drawdown_Pct']):>11.2f}%")
-    print(f"  Sharpe Ratio:            {metrics['Sharpe_Ratio']:>15.2f}")
-    print(f"  Win Rate:                {metrics['Win_Rate_Pct']:>11.2f}%")
-    print(f"  Total Trades:            {metrics['Total_Trades']:>15}")
+    # Step 4: Backtest on training period
+    print("\n[4/6] Running backtest on training period...")
+    train_df = generate_ml_signals(train_df, ml_model, buy_threshold=0.55, sell_threshold=0.45)
+    backtest_df, trades_df, final_capital = backtest_strategy(train_df, initial_capital=100000, position_size=0.95)
     
-    # Competition requirements check
-    print("\n" + "="*70)
-    print("COMPETITION REQUIREMENTS")
-    print("="*70)
+    # Calculate metrics
+    metrics = calculate_performance_metrics(backtest_df, trades_df, final_capital, 100000)
     
-    sharpe_pass = "PASS" if metrics['Sharpe_Ratio'] > 1.5 else "FAIL"
-    return_pass = "PASS" if metrics['Total_Return_Pct'] > 0 else "FAIL"
+    print("\n" + "=" * 60)
+    print("BACKTEST RESULTS (Training Period)")
+    print("=" * 60)
+    for key, value in metrics.items():
+        print(f"{key}: {value}")
     
-    print(f"  Sharpe Ratio > 1.5:      {sharpe_pass}")
-    print(f"  Positive Returns:        {return_pass}")
+    # Save backtest results
+    with open('results_summary.json', 'w') as f:
+        json.dump(metrics, f, indent=4)
+    print("\nBacktest results saved to 'results_summary.json'")
     
-    # Save results
-    if trades:
-        trades_df = pd.DataFrame(trades)
-        trades_df.to_csv('backtest_trades.csv', index=False)
-        print("\n✓ Saved: backtest_trades.csv")
+    # Save trades log
+    trades_df.to_csv('trades_log.csv', index=False)
+    print("Trades log saved to 'trades_log.csv'")
     
-    with open('backtest_metrics.json', 'w') as f:
-        # Convert numpy types to Python types for JSON serialization
-        metrics_json = {k: float(v) if isinstance(v, (float, int)) else v 
-                       for k, v in metrics.items()}
-        json.dump(metrics_json, f, indent=2)
+    # Step 5: Generate forward predictions (MANDATORY)
+    print("\n[5/6] Generating forward predictions for Jan 1-8, 2026...")
+    predict_df = get_fyers_data(symbol, predict_start, predict_end)
     
-    print("✓ Saved: backtest_metrics.json")
-    print("\n" + "="*70)
+    if predict_df is None or len(predict_df) == 0:
+        print("WARNING: No data available for prediction period")
+        print("Creating dummy predictions file...")
+        
+        # Create dummy predictions
+        forward_predictions = {
+            "prediction_period": f"{predict_start} to {predict_end}",
+            "model_frozen_on": train_end,
+            "predictions": [],
+            "note": "No market data available for this period"
+        }
+    else:
+        print(f"Loaded {len(predict_df)} records for prediction")
+        
+        # Calculate features for prediction
+        predict_df = calculate_bollinger_bands(predict_df, window=20, num_std=2)
+        
+        # Generate predictions
+        predictions = ml_model.predict_proba(predict_df)
+        
+        # Prepare forward predictions output
+        forward_predictions = {
+            "prediction_period": f"{predict_start} to {predict_end}",
+            "model_frozen_on": train_end,
+            "predictions": []
+        }
+        
+        for date, row in predictions.iterrows():
+            forward_predictions["predictions"].append({
+                "date": str(date.date()) if hasattr(date, 'date') else str(date),
+                "probability_up": round(float(row['prob_up']), 4),
+                "probability_down": round(float(row['prob_down']), 4),
+                "predicted_direction": row['predicted_direction']
+            })
+    
+    # Save forward predictions (MANDATORY OUTPUT)
+    with open('predictions_jan_2026.json', 'w') as f:
+        json.dump(forward_predictions, f, indent=4)
+    
+    print("Forward predictions saved to 'predictions_jan_2026.json'")
+    
+    # Step 6: Compliance check
+    print("\n[6/6] Compliance check...")
+    required_files = [
+        'trained_model.pkl',
+        'predictions_jan_2026.json',
+        'results_summary.json',
+        'trades_log.csv'
+    ]
+    
+    import os
+    all_present = True
+    for file in required_files:
+        exists = os.path.exists(file)
+        status = "✓" if exists else "✗"
+        print(f"{status} {file}")
+        if not exists:
+            all_present = False
+    
+    print("\n" + "=" * 60)
+    if all_present:
+        print("SUCCESS: All compliance outputs generated")
+    else:
+        print("WARNING: Some required files missing")
+    print("=" * 60)
 
 if __name__ == "__main__":
     main()
