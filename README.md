@@ -1,22 +1,38 @@
-ML-Driven Bollinger Bands Trading System
+ML-Driven Trading System Using Bollinger-Based Features
 
 KSHITIJ 2026 – FinStreet / AQUA Competition Submission
 
-1. Problem Alignment
+1. Objective
 
-This project implements an end-to-end ML-driven trading system as required by the KSHITIJ 2026 FinStreet problem statement.
+This repository implements a fully automated, machine-learning–driven trading system in strict accordance with the KSHITIJ 2026 FinStreet problem statement.
 
-The system strictly follows the mandated pipeline:
+The system is designed to:
 
-Market Data (FYERS API) → Feature Engineering → ML Model → Trading Signals → Backtest → Forward Prediction
+Learn from historical price data
+
+Predict 5-day forward price direction
+
+Convert predictions into systematic trading signals
+
+Backtest the strategy chronologically
+
+Produce a true forward prediction without future data leakage
 
 No manual intervention is used at any stage.
 
-2. Data Source & Constraints
+2. End-to-End Pipeline
 
-Data Source: FYERS Official Market Data API
+The implemented pipeline follows the mandated structure:
 
-Instrument: Single NSE equity (as per competition stock list)
+FYERS Market Data → Feature Engineering → ML Model → Signal Generation → Backtest → Forward Prediction
+
+Each stage is deterministic, reproducible, and auditable.
+
+3. Data Source and Constraints
+
+Market Data Source: FYERS Official Market Data API
+
+Instrument: Single NSE-listed equity (as per competition stock list)
 
 Frequency: Daily OHLCV
 
@@ -24,79 +40,86 @@ Training Window:
 
 1 November 2025 – 31 December 2025
 
-External datasets: ❌ Not used
+External / alternative datasets: Not used
 
-CSV imports: ❌ Not used
+All data is fetched programmatically using the FYERS API.
+No CSV imports or offline datasets are used.
 
-All data is fetched programmatically via FYERS.
+4. Feature Engineering
 
-3. Feature Engineering
-
-Technical indicators are used only as ML features, not as rule-based triggers.
+Technical indicators are used only as model features, not as trading rules.
 
 Computed features:
 
-Simple Moving Average (20-day)
+20-day Simple Moving Average (SMA)
 
-Rolling Standard Deviation
+Rolling Standard Deviation (STD)
 
-Bollinger Band Upper / Lower
+Bollinger Band Upper and Lower
 
 Percent_B
 
 Bandwidth
 
-No indicator thresholds are used for direct BUY/SELL decisions.
+No indicator thresholds are used for direct BUY or SELL decisions.
 
-4. Machine Learning Model
+5. Machine Learning Model
 
-Model Type: Supervised Classification
+Model Type: Supervised binary classification
 
 Algorithm: Random Forest Classifier
 
-Target Variable:
+Input Features:
 
-1 → Price increases over the next 5 trading days
+Percent_B
 
-0 → Otherwise
+Bandwidth
 
-Target Construction
-Target = sign( Close[t+5] − Close[t] )
+SMA
+
+STD
+
+Target Definition
+
+The model predicts whether price will move up or down over the next 5 trading days.
+
+Target = 1  if  Close[t+5] > Close[t]
+Target = 0  otherwise
 
 
-This directly satisfies the requirement to predict the next 5 trading days.
+This explicitly satisfies the requirement to predict the next 5 trading days.
 
-Training
+Training Protocol
 
-Model trained only on Nov–Dec 2025
+Model trained only on data from Nov–Dec 2025
 
-Model is frozen on 31 Dec 2025
+Model state is frozen on 31 Dec 2025
 
-Trained model is saved as trained_model.pkl
+Trained model is persisted as trained_model.pkl
 
-5. Trading Signal Logic (ML-Driven)
+6. Trading Signal Generation
 
-Signals are generated exclusively from ML probabilities:
+Trading signals are generated exclusively from ML probabilities:
 
-BUY: P(Up) > 0.55
+BUY: Probability(Up) > 0.55
 
-SELL: P(Up) < 0.45
+SELL: Probability(Up) < 0.45
 
-HOLD: otherwise
+HOLD: Otherwise
 
-There are no rule-based Bollinger thresholds in signal generation.
+There are no rule-based Bollinger thresholds in the decision logic.
 
-6. Backtesting Methodology
+7. Backtesting Methodology
 
-Chronological backtest on training window
+Chronological backtest on the training window
 
 No look-ahead bias
 
-No future data leakage
+No data leakage
 
-Position sizing and capital tracking fully automated
+Capital, position sizing, and P&L tracked systematically
 
-Metrics computed:
+Performance metrics computed:
 
 Total Return
 
@@ -108,23 +131,23 @@ Win Rate
 
 Trade Log
 
-Backtest results are saved as:
+Outputs:
 
 results_summary.json
 
 trades_log.csv
 
-7. Forward Prediction (Mandatory Requirement)
+8. Forward Prediction (Mandatory Requirement)
 
 A true forward prediction is generated as follows:
 
-Model is frozen on 31 Dec 2025
+Model is frozen on 31 December 2025
 
-No Jan 2026 market data is used
+No January 2026 market data is accessed
 
-Last available state (Dec 31) is used to forecast the next 5 trading days
+The last available state (Dec 31) is used to forecast the next 5 trading days
 
-Output saved as:
+Output is saved to:
 
 predictions_jan_2026.json
 
@@ -139,7 +162,7 @@ Predicted direction
 
 Explicit confirmation that no future data was used
 
-8. Reproducibility & Automation
+9. Automation and Reproducibility
 
 Single execution entry point: main.py
 
@@ -147,19 +170,11 @@ Fully automated pipeline
 
 No notebooks required
 
-All outputs generated in one run
+No manual steps
 
-Required output files:
+Running main.py generates all mandatory outputs in one execution.
 
-trained_model.pkl
-
-predictions_jan_2026.json
-
-results_summary.json
-
-trades_log.csv
-
-9. File Structure
+10. Repository Structure
 .
 ├── main.py
 ├── ml_model.py
@@ -171,17 +186,17 @@ trades_log.csv
 ├── trades_log.csv
 └── README.md
 
-10. Key Notes for Evaluation
+11. Evaluation Notes
 
-This is not a rule-based Bollinger strategy
+This is not a rule-based Bollinger Bands strategy
 
-Bollinger Bands are features, not decision rules
+Bollinger indicators are used strictly as features
 
-ML model is the sole decision engine
+Machine learning is the sole decision engine
 
 Forward prediction is genuinely out-of-sample
 
-11. Disclaimer
+12. Disclaimer
 
-This project is built strictly for academic and competition purposes in accordance with the KSHITIJ 2026 FinStreet problem statement.
-It is not intended as live trading advice.
+This project is developed solely for academic and competition purposes under the KSHITIJ 2026 FinStreet challenge.
+It does not constitute investment advice or a live trading recommendation.
